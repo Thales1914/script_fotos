@@ -8,6 +8,7 @@ from tkinter import filedialog, messagebox, ttk
 import pythoncom
 
 from preencher_fotos_core import (
+    EXTENSOES_PLANILHA,
     PASTA_IMAGENS_PADRAO,
     PASTA_PLANILHAS_PADRAO,
     inserir_imagens_em_lote,
@@ -25,7 +26,7 @@ class MiniInterfacePreenchimento:
         self.pasta_base = obter_pasta_base_execucao()
         self.var_planilhas = tk.StringVar()
         self.var_imagens = tk.StringVar()
-        self.var_status = tk.StringVar(value="Selecione as pastas e clique em Iniciar.")
+        self.var_status = tk.StringVar(value="Selecione a planilha e a pasta das fotos.")
 
         self._fila_eventos = queue.Queue()
         self._thread_execucao = None
@@ -43,16 +44,16 @@ class MiniInterfacePreenchimento:
         frame_topo.grid(row=0, column=0, sticky="nsew")
         frame_topo.columnconfigure(1, weight=1)
 
-        ttk.Label(frame_topo, text="Pasta das planilhas").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=(0, 8))
+        ttk.Label(frame_topo, text="Planilha (.xlsx/.xlsm/.xls)").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=(0, 8))
         self.entry_planilhas = ttk.Entry(frame_topo, textvariable=self.var_planilhas)
         self.entry_planilhas.grid(row=0, column=1, sticky="ew", pady=(0, 8))
-        self.btn_planilhas = ttk.Button(frame_topo, text="Selecionar...", command=self._selecionar_planilhas)
+        self.btn_planilhas = ttk.Button(frame_topo, text="Selecionar planilha...", command=self._selecionar_planilhas)
         self.btn_planilhas.grid(row=0, column=2, sticky="ew", padx=(8, 0), pady=(0, 8))
 
         ttk.Label(frame_topo, text="Pasta das fotos").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=(0, 8))
         self.entry_imagens = ttk.Entry(frame_topo, textvariable=self.var_imagens)
         self.entry_imagens.grid(row=1, column=1, sticky="ew", pady=(0, 8))
-        self.btn_imagens = ttk.Button(frame_topo, text="Selecionar...", command=self._selecionar_imagens)
+        self.btn_imagens = ttk.Button(frame_topo, text="Selecionar pasta...", command=self._selecionar_imagens)
         self.btn_imagens.grid(row=1, column=2, sticky="ew", padx=(8, 0), pady=(0, 8))
 
         frame_acoes = ttk.Frame(self.root, padding=(12, 0, 12, 8))
@@ -100,13 +101,18 @@ class MiniInterfacePreenchimento:
         imgs = os.path.join(self.pasta_base, PASTA_IMAGENS_PADRAO)
         self.var_planilhas.set(plan)
         self.var_imagens.set(imgs)
-        self._log_gui("Pastas padrao preenchidas nos campos.")
+        self._log_gui("Pastas padrao preenchidas (campo da planilha aceita arquivo ou pasta).")
 
     def _selecionar_planilhas(self):
-        caminho = filedialog.askdirectory(
-            title="Selecione a pasta com as planilhas",
-            initialdir=self.var_planilhas.get() or self.pasta_base,
-            mustexist=True,
+        atual = self.var_planilhas.get().strip()
+        pasta_inicial = self.pasta_base
+        if atual:
+            pasta_inicial = atual if os.path.isdir(atual) else os.path.dirname(atual) or self.pasta_base
+
+        caminho = filedialog.askopenfilename(
+            title="Selecione a planilha",
+            initialdir=pasta_inicial,
+            filetypes=[("Planilhas Excel", "*.xlsx;*.xlsm;*.xls")],
             parent=self.root,
         )
         if caminho:
@@ -153,7 +159,7 @@ class MiniInterfacePreenchimento:
         if em_execucao:
             self.btn_iniciar.configure(text="Processando...")
             self.progress.start(10)
-            self.var_status.set("Processando planilhas...")
+            self.var_status.set("Processando planilha(s)...")
         else:
             self.btn_iniciar.configure(text="Iniciar preenchimento")
             self.progress.stop()
@@ -167,14 +173,20 @@ class MiniInterfacePreenchimento:
 
         if not pasta_planilhas or not pasta_imagens:
             messagebox.showwarning(
-                "Pastas obrigatorias",
-                "Preencha os dois campos: pasta das planilhas e pasta das fotos.",
+                "Campos obrigatorios",
+                "Selecione a planilha (ou pasta de planilhas) e a pasta das fotos.",
                 parent=self.root,
             )
             return
 
-        if not os.path.isdir(pasta_planilhas):
-            messagebox.showerror("Pasta invalida", f"Pasta de planilhas nao encontrada:\n{pasta_planilhas}", parent=self.root)
+        ext_planilha = os.path.splitext(pasta_planilhas)[1].lower() if os.path.isfile(pasta_planilhas) else ""
+        entrada_planilha_valida = os.path.isdir(pasta_planilhas) or (os.path.isfile(pasta_planilhas) and ext_planilha in EXTENSOES_PLANILHA)
+        if not entrada_planilha_valida:
+            messagebox.showerror(
+                "Planilha invalida",
+                "Selecione um arquivo de planilha (.xlsx/.xlsm/.xls) ou uma pasta com planilhas:\n" + pasta_planilhas,
+                parent=self.root,
+            )
             return
 
         if not os.path.isdir(pasta_imagens):
@@ -184,8 +196,8 @@ class MiniInterfacePreenchimento:
         self._set_em_execucao(True)
         self._log_gui("")
         self._log_gui("=== Inicio do processamento ===")
-        self._log_gui(f"Planilhas: {pasta_planilhas}")
-        self._log_gui(f"Imagens:   {pasta_imagens}")
+        self._log_gui(f"Planilha(s): {pasta_planilhas}")
+        self._log_gui(f"Imagens:    {pasta_imagens}")
 
         self._thread_execucao = threading.Thread(
             target=self._executar_processamento_em_thread,

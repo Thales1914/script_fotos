@@ -338,6 +338,13 @@ def listar_planilhas_recursivamente(pasta_planilhas):
     return sorted(encontrados)
 
 
+def eh_arquivo_planilha(caminho):
+    if not caminho or not os.path.isfile(caminho):
+        return False
+    _, ext = os.path.splitext(caminho)
+    return ext.lower() in EXTENSOES_PLANILHA
+
+
 def detectar_pastas_padrao(pasta_base, log_fn=print):
     pasta_planilhas = os.path.join(pasta_base, PASTA_PLANILHAS_PADRAO)
     pasta_imagens = os.path.join(pasta_base, PASTA_IMAGENS_PADRAO)
@@ -596,25 +603,38 @@ def inserir_imagens_em_lote(pasta_planilhas=None, pasta_imagens=None, log_fn=pri
         pasta_planilhas, pasta_imagens = selecionar_origens(pasta_base, log_fn=log)
 
     if not pasta_planilhas:
-        emitir_log(log, "Nenhuma pasta de planilhas selecionada. Encerrando.")
+        emitir_log(log, "Nenhuma planilha/pasta de planilhas selecionada. Encerrando.")
         return None
 
     if not pasta_imagens:
         emitir_log(log, "Nenhuma pasta de imagens selecionada. Encerrando.")
         return None
 
-    if not os.path.isdir(pasta_planilhas):
-        emitir_log(log, f"Pasta de planilhas nao encontrada: {pasta_planilhas}")
+    entrada_planilhas_eh_pasta = os.path.isdir(pasta_planilhas)
+    entrada_planilhas_eh_arquivo = eh_arquivo_planilha(pasta_planilhas)
+
+    if not entrada_planilhas_eh_pasta and not entrada_planilhas_eh_arquivo:
+        emitir_log(
+            log,
+            "Origem de planilhas invalida (selecione uma pasta ou um arquivo .xlsx/.xlsm/.xls): "
+            f"{pasta_planilhas}",
+        )
         return None
 
     if not os.path.isdir(pasta_imagens):
         emitir_log(log, f"Pasta de imagens nao encontrada: {pasta_imagens}")
         return None
 
-    emitir_log(log, f"Pasta de planilhas: {pasta_planilhas}")
+    if entrada_planilhas_eh_arquivo:
+        emitir_log(log, f"Planilha selecionada: {pasta_planilhas}")
+    else:
+        emitir_log(log, f"Pasta de planilhas: {pasta_planilhas}")
     emitir_log(log, f"Pasta de imagens:   {pasta_imagens}")
 
-    planilhas = listar_planilhas_recursivamente(pasta_planilhas)
+    if entrada_planilhas_eh_arquivo:
+        planilhas = [os.path.abspath(pasta_planilhas)]
+    else:
+        planilhas = listar_planilhas_recursivamente(pasta_planilhas)
     if not planilhas:
         emitir_log(log, "Nenhuma planilha encontrada para processar.")
         return None
