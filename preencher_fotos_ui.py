@@ -159,7 +159,7 @@ class MiniInterfacePreenchimento:
         if em_execucao:
             self.btn_iniciar.configure(text="Processando...")
             self.progress.start(10)
-            self.var_status.set("Processando planilha(s)...")
+            self.var_status.set("Processando e gerando copia(s)...")
         else:
             self.btn_iniciar.configure(text="Iniciar preenchimento")
             self.progress.stop()
@@ -195,7 +195,7 @@ class MiniInterfacePreenchimento:
 
         self._set_em_execucao(True)
         self._log_gui("")
-        self._log_gui("=== Inicio do processamento ===")
+        self._log_gui("=== Inicio do processamento (copia sera gerada) ===")
         self._log_gui(f"Planilha(s): {pasta_planilhas}")
         self._log_gui(f"Imagens:    {pasta_imagens}")
 
@@ -249,7 +249,7 @@ class MiniInterfacePreenchimento:
         totais = resultado.get("totais", {})
         self.var_status.set(
             "Concluido: "
-            f'planilhas={totais.get("planilhas_salvas", 0)}/{totais.get("planilhas", 0)} salvas, '
+            f'copias={totais.get("planilhas_salvas", 0)}/{totais.get("planilhas", 0)} geradas, '
             f'fotos_inseridas={totais.get("fotos_inseridas", 0)}, '
             f'fotos_faltantes={totais.get("fotos_faltantes", 0)}'
         )

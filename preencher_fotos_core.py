@@ -18,6 +18,7 @@ MAX_COLUNAS_CABECALHO = 250
 MARGEM_IMAGEM_X = 2
 MARGEM_IMAGEM_Y = 2
 PREFIXO_SHAPE = "AUTOIMG"
+SUFIXO_COPIA_SAIDA = "_preenchido"
 
 
 def criar_root_tk():
@@ -345,6 +346,23 @@ def eh_arquivo_planilha(caminho):
     return ext.lower() in EXTENSOES_PLANILHA
 
 
+def gerar_caminho_copia_saida(caminho_planilha):
+    pasta = os.path.dirname(caminho_planilha)
+    nome_base, ext = os.path.splitext(os.path.basename(caminho_planilha))
+
+    nome_copia_base = nome_base
+    if not nome_copia_base.lower().endswith(SUFIXO_COPIA_SAIDA.lower()):
+        nome_copia_base = f"{nome_copia_base}{SUFIXO_COPIA_SAIDA}"
+
+    caminho_copia = os.path.join(pasta, f"{nome_copia_base}{ext}")
+    contador = 2
+    while os.path.exists(caminho_copia):
+        caminho_copia = os.path.join(pasta, f"{nome_copia_base}_{contador}{ext}")
+        contador += 1
+
+    return caminho_copia
+
+
 def detectar_pastas_padrao(pasta_base, log_fn=print):
     pasta_planilhas = os.path.join(pasta_base, PASTA_PLANILHAS_PADRAO)
     pasta_imagens = os.path.join(pasta_base, PASTA_IMAGENS_PADRAO)
@@ -473,6 +491,7 @@ def processar_planilha(excel, caminho_planilha, indice_imagens):
         "arquivo": caminho_planilha,
         "aberto": False,
         "salvo": False,
+        "arquivo_saida": None,
         "erro": None,
         "abas": [],
         "totais": {
@@ -491,7 +510,7 @@ def processar_planilha(excel, caminho_planilha, indice_imagens):
         resultado["aberto"] = True
 
         if bool(getattr(wb, "ReadOnly", False)):
-            resultado["erro"] = "Arquivo aberto em modo somente leitura (nao sera salvo)."
+            resultado["erro"] = "Arquivo aberto em modo somente leitura (sera gerada copia se houver alteracoes)."
 
         for ws in wb.Worksheets:
             try:
@@ -528,9 +547,11 @@ def processar_planilha(excel, caminho_planilha, indice_imagens):
             or resultado["totais"]["shapes_substituidas"] > 0
         )
 
-        if houve_alteracao and not bool(getattr(wb, "ReadOnly", False)):
-            wb.Save()
+        if houve_alteracao:
+            caminho_saida = gerar_caminho_copia_saida(caminho_planilha)
+            wb.SaveCopyAs(os.path.abspath(caminho_saida))
             resultado["salvo"] = True
+            resultado["arquivo_saida"] = caminho_saida
 
     except Exception as exc:
         resultado["erro"] = str(exc)
@@ -564,8 +585,11 @@ def imprimir_resumo_planilha(resultado, log_fn=print):
         f'fotos_inseridas={resultado["totais"]["fotos_inseridas"]}, '
         f'fotos_faltantes={resultado["totais"]["fotos_faltantes"]}, '
         f'shapes_substituidas={resultado["totais"]["shapes_substituidas"]}, '
-        f'salvo={resultado["salvo"]}'
+        f'copia_gerada={resultado["salvo"]}'
     )
+
+    if resultado.get("arquivo_saida"):
+        emitir_log(log_fn, f'  Copia gerada: {resultado["arquivo_saida"]}')
 
     for aba in resultado["abas"]:
         if not aba.get("detectada"):
@@ -715,7 +739,7 @@ def inserir_imagens_em_lote(pasta_planilhas=None, pasta_imagens=None, log_fn=pri
     emitir_log(
         log,
         f'  planilhas={totais_gerais["planilhas"]}, '
-        f'planilhas_salvas={totais_gerais["planilhas_salvas"]}, '
+        f'copias_geradas={totais_gerais["planilhas_salvas"]}, '
         f'abas_detectadas={totais_gerais["abas_detectadas"]}, '
         f'linhas_com_nomes={totais_gerais["linhas_com_nomes"]}, '
         f'fotos_referenciadas={totais_gerais["fotos_referenciadas"]}, '
