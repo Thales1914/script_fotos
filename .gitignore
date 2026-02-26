@@ -1,0 +1,29 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build artifacts (PyInstaller)
+build/
+dist/
+*.spec.bak
+
+# Local editors / OS
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+
+# Runtime work folders (dados de operacao)
+PARA_RODAR/PLANILHAS/**
+PARA_RODAR/FOTOS/**
+
+# Mantem os wrappers/documentacao da pasta de uso
+!PARA_RODAR/PLANILHAS/
+!PARA_RODAR/FOTOS/
+!PARA_RODAR/Executar_Preenchimento.bat
+!PARA_RODAR/README_USO.txt
+
+# Executavel gerado (opcional: remova esta linha se quiser versionar o .exe)
+PARA_RODAR/PreencherFotosExcel.exe
